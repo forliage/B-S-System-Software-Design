@@ -1,28 +1,32 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // 引入 path 模块
 require('dotenv').config();
 
 // 引入路由
 const userRoutes = require('./routes/userRoutes');
+const photoRoutes = require('./routes/photoRoutes'); // 新增
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// --- API 路由 ---
+// --- 静态文件服务 ---
+// 让 'uploads' 目录下的文件可以通过 URL 直接访问
+// 例如 http://localhost:3001/1678886400000.jpg
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// 用于测试连通性的路由 (可以保留或删除)
+
+// --- API 路由 ---
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend is running!' });
 });
-
-// 使用用户路由，所有 /api/users 开头的请求都会被转发到 userRoutes
 app.use('/api/users', userRoutes);
+app.use('/api/photos', photoRoutes); // 新增
 
 // --- 服务器启动 ---
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

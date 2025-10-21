@@ -4,6 +4,8 @@ import { AuthContext } from './context/AuthContext';
 import Register from './components/Register';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
+import Upload from './components/Upload';
+import Dashboard from './components/Dashboard'; // 导入新的 Dashboard 组件
 import './App.css';
 
 // 简单的主页
@@ -18,24 +20,13 @@ function HomePage() {
   );
 }
 
-// 受保护的仪表盘页面
-function Dashboard() {
-  const { user } = useContext(AuthContext);
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>{user.username}的图库</h1>
-        <p>这里将展示您的图片。</p>
-      </header>
-    </div>
-  );
-}
+// 旧的 Dashboard 组件定义已被移除
 
-// 受保护路由组件
+// 受保护路由组件 (保持不变)
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useContext(AuthContext);
   if (loading) {
-    return <div>加载中...</div>; // 防止在验证时闪烁到登录页
+    return <div>加载中...</div>;
   }
   return isAuthenticated ? children : <Navigate to="/login" />;
 }
@@ -53,6 +44,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <Upload />
             </ProtectedRoute>
           }
         />
