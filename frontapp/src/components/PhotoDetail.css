@@ -11,6 +11,7 @@
 
 .photo-image-container {
   flex: 2; /* 图片占据更大空间 */
+  cursor: pointer;
 }
 
 .photo-image-container img {

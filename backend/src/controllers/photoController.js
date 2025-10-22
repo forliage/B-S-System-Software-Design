@@ -70,6 +70,18 @@ exports.getPhotoById = async (req, res) => {
 
     photo.url = `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}`;
 
+    // 新增：获取该用户的所有图片
+    const [userPhotos] = await db.query(
+      'SELECT * FROM Photo WHERE user_id = ? ORDER BY upload_time DESC',
+      [photo.user_id]
+    );
+
+    // 为所有图片添加完整 URL
+    const userPhotosWithUrls = userPhotos.map(p => ({
+        ...p,
+        url: `http://localhost:3001/${p.filepath.replace(/\\/g, '/')}`
+    }));
+
     let isLiked = false;
     // 检查请求头中是否有 token
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -91,7 +103,7 @@ exports.getPhotoById = async (req, res) => {
     }
 
     // 返回包含图片信息和当前用户点赞状态的对象
-    res.status(200).json({ photo, isLiked });
+    res.status(200).json({ photo, userPhotos: userPhotosWithUrls, isLiked });
   } catch (error) {
     console.error('获取图片详情失败:', error);
     res.status(500).json({ error: '服务器内部错误' });

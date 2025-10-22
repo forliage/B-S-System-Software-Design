@@ -1,24 +1,35 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import CommentSection from './CommentSection'; 
+import CommentSection from './CommentSection';
+import CarouselModal from './CarouselModal';
 import './PhotoDetail.css';
 
 function PhotoDetail() {
-  const { id } = useParams(); // 从 URL 中获取图片 ID
+  const { id } = useParams();
   const navigate = useNavigate();
+  
+  // 组件状态
   const [photo, setPhoto] = useState(null);
+  const [userPhotos, setUserPhotos] = useState([]); // 用于轮播
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isLiked, setIsLiked] = useState(false); // 新增：追踪点赞状态
-  const [likeCount, setLikeCount] = useState(0); // 新增：追踪点赞数
+  
+  // 点赞相关状态
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  
+  // 轮播相关状态
+  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const { user, token, isAuthenticated } = useContext(AuthContext);
 
+  // 获取图片详情和相关数据
   useEffect(() => {
     const fetchPhoto = async () => {
+      setLoading(true);
       try {
-        // 为了获取当前用户的点赞状态，我们需要在请求中携带token
-        // 所以后端 getPhotoById 接口也需要调整
         const headers = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -26,11 +37,14 @@ function PhotoDetail() {
 
         const response = await fetch(`http://localhost:3001/api/photos/${id}`, { headers });
         
-        if (!response.ok) throw new Error('图片未找到');
+        if (!response.ok) {
+          throw new Error('图片未找到或加载失败');
+        }
         
         const data = await response.json();
         setPhoto(data.photo);
-        setIsLiked(data.isLiked); // 从后端获取点赞状态
+        setUserPhotos(data.userPhotos); // 获取该用户的所有图片列表
+        setIsLiked(data.isLiked);       // 获取当前用户的点赞状态
         setLikeCount(data.photo.like_count);
 
       } catch (err) {
@@ -41,6 +55,8 @@ function PhotoDetail() {
     };
     fetchPhoto();
   }, [id, token]);
+
+  // 处理删除
   const handleDelete = async () => {
     if (!window.confirm('您确定要永久删除这张图片吗？')) {
       return;
@@ -49,9 +65,7 @@ function PhotoDetail() {
     try {
       const response = await fetch(`http://localhost:3001/api/photos/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -60,12 +74,13 @@ function PhotoDetail() {
       }
       
       alert('图片删除成功！');
-      navigate('/dashboard'); // 删除成功后返回图库
+      navigate('/dashboard');
     } catch (err) {
       alert(`删除失败: ${err.message}`);
     }
   };
 
+  // 处理点赞/取消点赞
   const handleLike = async () => {
     if (!isAuthenticated) {
       alert('请先登录再点赞！');
@@ -87,7 +102,26 @@ function PhotoDetail() {
       console.error('点赞失败', err);
     }
   };
+  
+  // --- 轮播控制逻辑 ---
+  const openCarousel = () => {
+    const index = userPhotos.findIndex(p => p.photo_id === photo.photo_id);
+    if (index !== -1) {
+        setCurrentIndex(index);
+        setIsCarouselOpen(true);
+    }
+  };
+  const closeCarousel = () => setIsCarouselOpen(false);
+  const goToPrevious = () => {
+      setCurrentIndex(prev => (prev === 0 ? userPhotos.length - 1 : prev - 1));
+  };
+  const goToNext = () => {
+      setCurrentIndex(prev => (prev === userPhotos.length - 1 ? 0 : prev + 1));
+  };
+  // --- 结束轮播控制逻辑 ---
 
+
+  // --- 渲染逻辑 ---
   if (loading) {
     return <div className="detail-loading">正在加载图片详情...</div>;
   }
@@ -100,42 +134,53 @@ function PhotoDetail() {
     return <div className="detail-error">未找到图片。</div>;
   }
 
-  // 检查当前登录用户是否是图片的所有者
   const isOwner = user && user.userId === photo.user_id;
 
   return (
     <>
-    <div className="photo-detail-container">
-      <div className="photo-image-container">
-        <img src={photo.url} alt={photo.title} />
-      </div>
-      <div className="photo-meta-container">
-        <h2>{photo.title}</h2>
-        <p>{photo.description || '暂无描述'}</p>
-        
-        <div className="like-section">
-          <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
-            <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>
-            {isLiked ? '已赞' : '点赞'}
-          </button>
-          <span className="like-count">{likeCount} 人赞过</span>
+      <div className="photo-detail-container">
+        <div className="photo-image-container" onClick={openCarousel}>
+          <img src={photo.url} alt={photo.title} />
         </div>
-        
-        <div className="meta-item">
-          <strong>上传时间:</strong>
-          <span>{new Date(photo.upload_time).toLocaleString()}</span>
-        </div>
-        {isOwner && (
-          <div className="owner-actions">
-            <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
-            <button onClick={handleDelete} className="delete-button">删除图片</button>
+        <div className="photo-meta-container">
+          <h2>{photo.title}</h2>
+          <p>{photo.description || '暂无描述'}</p>
+          
+          <div className="like-section">
+            <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
+              <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>
+              {isLiked ? '已赞' : '点赞'}
+            </button>
+            <span className="like-count">{likeCount} 人赞过</span>
           </div>
-        )}
+          
+          <div className="meta-item">
+            <strong>上传时间:</strong>
+            <span>{new Date(photo.upload_time).toLocaleString()}</span>
+          </div>
+
+          {isOwner && (
+            <div className="owner-actions">
+              <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
+              <button onClick={handleDelete} className="delete-button">删除图片</button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-    <div className="photo-detail-container">
-         <CommentSection photoId={photo.photo_id} />
+      
+      <div className="photo-detail-container">
+        <CommentSection photoId={photo.photo_id} />
       </div>
+
+      {isCarouselOpen && (
+        <CarouselModal
+            photos={userPhotos}
+            currentIndex={currentIndex}
+            onClose={closeCarousel}
+            onPrev={goToPrevious}
+            onNext={goToNext}
+        />
+      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom'; 
 import { AuthContext } from '../context/AuthContext';
+import CarouselModal from './CarouselModal';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -8,6 +8,9 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user, token } = useContext(AuthContext);
+
+  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -36,6 +39,25 @@ function Dashboard() {
     }
   }, [token]); // 当 token 变化时重新获取
 
+  // 打开轮播的函数
+  const openCarousel = (index) => {
+    setCurrentIndex(index);
+    setIsCarouselOpen(true);
+  };
+
+  // 关闭轮播
+  const closeCarousel = () => setIsCarouselOpen(false);
+
+  // 切换到上一张
+  const goToPrevious = () => {
+    setCurrentIndex((prevIndex) => (prevIndex === 0 ? photos.length - 1 : prevIndex - 1));
+  };
+
+  // 切换到下一张
+  const goToNext = () => {
+    setCurrentIndex((prevIndex) => (prevIndex === photos.length - 1 ? 0 : prevIndex + 1));
+  };
+
   if (loading) {
     return <div className="loading">正在加载您的图片...</div>;
   }
@@ -55,19 +77,28 @@ function Dashboard() {
         <div className="no-photos">您还没有上传任何图片。</div>
       ) : (
         <div className="photo-grid">
-          {photos.map((photo) => (
-            // 将 photo-card 整体包裹在 Link 中
-            <Link to={`/photo/${photo.photo_id}`} key={photo.photo_id} className="photo-card-link">
-              <div className="photo-card">
-                <img src={photo.url} alt={photo.title} />
-                <div className="photo-info">
-                  <h3>{photo.title}</h3>
-                  <p>{new Date(photo.upload_time).toLocaleDateString()}</p>
-                </div>
+          {photos.map((photo, index) => (
+            // 移除 Link, 添加 onClick 事件
+            <div key={photo.photo_id} className="photo-card" onClick={() => openCarousel(index)}>
+              <img src={photo.url} alt={photo.title} />
+              <div className="photo-info">
+                <h3>{photo.title}</h3>
+                <p>{new Date(photo.upload_time).toLocaleDateString()}</p>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
+      )}
+      
+      {/* 条件渲染轮播组件 */}
+      {isCarouselOpen && (
+        <CarouselModal
+          photos={photos}
+          currentIndex={currentIndex}
+          onClose={closeCarousel}
+          onPrev={goToPrevious}
+          onNext={goToNext}
+        />
       )}
     </div>
   );
