@@ -59,3 +59,8 @@
     color: #888;
     margin-top: 4rem;
 }
+
+.photo-card-link {
+  text-decoration: none;
+  color: inherit;
+}

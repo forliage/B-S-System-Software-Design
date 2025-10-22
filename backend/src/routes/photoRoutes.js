@@ -24,4 +24,7 @@ router.post('/upload', protect, upload.single('image'), photoController.uploadPh
 // GET /api/photos/my-photos
 router.get('/my-photos', protect, photoController.getUserPhotos);
 
+router.get('/:id', photoController.getPhotoById);
+router.delete('/:id', protect, photoController.deletePhoto);
+
 module.exports = router;

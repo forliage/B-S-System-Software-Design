@@ -18,7 +18,7 @@ function Navbar() {
       <div className="navbar-links">
         {isAuthenticated ? (
           <>
-            <span className="user-greeting">你好, {user.username}!</span>
+            <span className="user-greeting">你好, {user?.username}!</span>
             <Link to="/dashboard">我的图库</Link>
             <Link to="/upload">上传图片</Link>
             <button onClick={handleLogout}>退出登录</button>

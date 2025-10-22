@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { Link } from 'react-router-dom'; 
 import { AuthContext } from '../context/AuthContext';
 import './Dashboard.css';
 
@@ -55,13 +56,16 @@ function Dashboard() {
       ) : (
         <div className="photo-grid">
           {photos.map((photo) => (
-            <div key={photo.photo_id} className="photo-card">
-              <img src={photo.url} alt={photo.title} />
-              <div className="photo-info">
-                <h3>{photo.title}</h3>
-                <p>{new Date(photo.upload_time).toLocaleDateString()}</p>
+            // 将 photo-card 整体包裹在 Link 中
+            <Link to={`/photo/${photo.photo_id}`} key={photo.photo_id} className="photo-card-link">
+              <div className="photo-card">
+                <img src={photo.url} alt={photo.title} />
+                <div className="photo-info">
+                  <h3>{photo.title}</h3>
+                  <p>{new Date(photo.upload_time).toLocaleDateString()}</p>
+                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

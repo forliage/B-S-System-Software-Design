@@ -6,6 +6,7 @@ import Login from './components/Login';
 import Navbar from './components/Navbar';
 import Upload from './components/Upload';
 import Dashboard from './components/Dashboard'; // 导入新的 Dashboard 组件
+import PhotoDetail from './components/PhotoDetail'; 
 import './App.css';
 
 // 简单的主页
@@ -55,6 +56,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/photo/:id" element={<PhotoDetail />} />
       </Routes>
     </Router>
   );
