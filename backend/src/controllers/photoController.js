@@ -1,33 +1,36 @@
 const db = require('../db');
 const fs = require('fs');
 const path = require('path');
-const jwt = require('jsonwebtoken'); // 确保引入 jwt
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator'); // 引入验证结果处理器
 const { findOrCreateTags } = require('./tagController');
 
 // 上传新图片
 exports.uploadPhoto = async (req, res) => {
+  // 处理验证结果
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { title, description, tags } = req.body;
   const { filename, path: filepath } = req.file;
   const { userId } = req.user;
 
-  if (!title || !req.file) {
-    return res.status(400).json({ error: '标题和图片文件不能为空' });
-  }
-
+  // 注意：因为 express-validator 的 escape() 会转义逗号，
+  // 我们需要在控制器中而不是路由中分割标签
   const tagNames = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    // 1. 插入 Photo 表
     const [result] = await connection.query(
       'INSERT INTO Photo (user_id, title, description, filename, filepath) VALUES (?, ?, ?, ?, ?)',
       [userId, title, description, filename, filepath]
     );
     const photoId = result.insertId;
 
-    // 2. 处理标签
     if (tagNames.length > 0) {
       const tagIds = await findOrCreateTags(tagNames);
       const photoTagValues = tagIds.map(tagId => [photoId, tagId]);
@@ -36,7 +39,6 @@ exports.uploadPhoto = async (req, res) => {
 
     await connection.commit();
 
-    // 3. 查询并返回新创建的 photo 对象
     const [rows] = await connection.query('SELECT * FROM Photo WHERE photo_id = ?', [photoId]);
     res.status(201).json({
       message: '图片上传成功',
@@ -55,18 +57,13 @@ exports.uploadPhoto = async (req, res) => {
 // 获取单张图片详情
 exports.getPhotoById = async (req, res) => {
   const { id } = req.params;
-
   try {
     const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
     const photo = photos[0];
-
-    if (!photo) {
-      return res.status(404).json({ error: '图片未找到' });
-    }
+    if (!photo) return res.status(404).json({ error: '图片未找到' });
 
     photo.url = `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}`;
 
-    // 获取该用户的所有图片列表（用于轮播）
     const [userPhotos] = await db.query(
       'SELECT * FROM Photo WHERE user_id = ? ORDER BY upload_time DESC',
       [photo.user_id]
@@ -76,31 +73,23 @@ exports.getPhotoById = async (req, res) => {
       url: `http://localhost:3001/${p.filepath.replace(/\\/g, '/')}`
     }));
     
-    // 获取图片的标签
     const [tags] = await db.query(
       `SELECT t.name FROM Tag t JOIN PhotoTag pt ON t.tag_id = pt.tag_id WHERE pt.photo_id = ?`,
       [id]
     );
     photo.tags = tags.map(t => t.name);
 
-    // 检查当前用户的点赞状态
     let isLiked = false;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       try {
         const token = req.headers.authorization.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
-
         const [likes] = await db.query(
           'SELECT * FROM `Like` WHERE user_id = ? AND photo_id = ?',
-          [userId, id]
+          [decoded.userId, id]
         );
-        if (likes.length > 0) {
-          isLiked = true;
-        }
-      } catch (error) {
-        // Token 无效或过期，isLiked 保持 false
-      }
+        if (likes.length > 0) isLiked = true;
+      } catch (error) { /* ignore */ }
     }
 
     res.status(200).json({ photo, userPhotos: userPhotosWithUrls, isLiked });
@@ -114,17 +103,11 @@ exports.getPhotoById = async (req, res) => {
 exports.deletePhoto = async (req, res) => {
   const { id } = req.params;
   const { userId } = req.user;
-
   try {
     const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
     const photo = photos[0];
-
-    if (!photo) {
-      return res.status(404).json({ error: '图片未找到' });
-    }
-    if (photo.user_id !== userId) {
-      return res.status(403).json({ error: '无权删除此图片' });
-    }
+    if (!photo) return res.status(404).json({ error: '图片未找到' });
+    if (photo.user_id !== userId) return res.status(403).json({ error: '无权删除此图片' });
 
     const filePath = path.join(__dirname, '..', '..', photo.filepath);
     fs.unlink(filePath, (err) => {
@@ -141,13 +124,14 @@ exports.deletePhoto = async (req, res) => {
 
 // 更新图片信息
 exports.updatePhotoInfo = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { id } = req.params;
   const { title, description } = req.body;
   const { userId } = req.user;
-
-  if (!title) {
-    return res.status(400).json({ error: '标题不能为空' });
-  }
 
   try {
     const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
@@ -212,11 +196,9 @@ exports.toggleLike = async (req, res) => {
 exports.searchPhotos = async (req, res) => {
     const { tag } = req.query;
     const { userId } = req.user;
-
     try {
         let photos;
         if (tag) {
-            // 按标签搜索
             [photos] = await db.query(
                 `SELECT DISTINCT p.* FROM Photo p
                  JOIN PhotoTag pt ON p.photo_id = pt.photo_id
@@ -226,14 +208,12 @@ exports.searchPhotos = async (req, res) => {
                 [tag, userId]
             );
         } else {
-            // 获取所有图片
             [photos] = await db.query(
                 'SELECT * FROM Photo WHERE user_id = ? ORDER BY upload_time DESC',
                 [userId]
             );
         }
 
-        // 为每张图片附加标签
         for (let photo of photos) {
             const [tags] = await db.query(
                 `SELECT t.name FROM Tag t JOIN PhotoTag pt ON t.tag_id = pt.tag_id WHERE pt.photo_id = ?`,

@@ -1,10 +1,10 @@
 const db = require('../db');
+const { validationResult } = require('express-validator'); // 引入验证结果处理器
 
 // 获取某张图片的所有评论
 exports.getCommentsForPhoto = async (req, res) => {
   const { photoId } = req.params;
   try {
-    // 使用 JOIN 查询来同时获取评论者信息
     const [comments] = await db.query(
       `SELECT c.comment_id, c.content, c.comment_time, u.username 
        FROM Comment c 
@@ -22,13 +22,15 @@ exports.getCommentsForPhoto = async (req, res) => {
 
 // 为图片添加新评论
 exports.addCommentToPhoto = async (req, res) => {
+  // 处理验证结果
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { photoId } = req.params;
   const { userId } = req.user;
   const { content } = req.body;
-
-  if (!content || content.trim() === '') {
-    return res.status(400).json({ error: '评论内容不能为空' });
-  }
 
   try {
     const [result] = await db.query(
@@ -36,7 +38,6 @@ exports.addCommentToPhoto = async (req, res) => {
       [photoId, userId, content]
     );
 
-    // 返回新创建的评论，包含用户信息
     const [newComment] = await db.query(
       `SELECT c.comment_id, c.content, c.comment_time, u.username 
        FROM Comment c 

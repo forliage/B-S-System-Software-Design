@@ -1,12 +1,18 @@
 const express = require('express');
-const router = express.Router({ mergeParams: true }); // mergeParams 允许访问父路由的参数 (如 :photoId)
+const router = express.Router({ mergeParams: true });
+const { body } = require('express-validator'); // 新增
 const commentController = require('../controllers/commentController');
 const { protect } = require('../middleware/authMiddleware');
+
+// 新增：评论验证和清理规则
+const commentValidationRules = [
+    body('content').trim().notEmpty().withMessage('评论内容不能为空').escape()
+];
 
 // GET /api/photos/:photoId/comments
 router.get('/', commentController.getCommentsForPhoto);
 
-// POST /api/photos/:photoId/comments
-router.post('/', protect, commentController.addCommentToPhoto);
+// POST /api/photos/:photoId/comments - 添加验证中间件
+router.post('/', protect, commentValidationRules, commentController.addCommentToPhoto);
 
 module.exports = router;

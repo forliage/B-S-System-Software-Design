@@ -1,23 +1,24 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path'); // 引入 path 模块
+const path = require('path');
+const helmet = require('helmet'); // 新增：引入 helmet
 require('dotenv').config();
 
 // 引入路由
 const userRoutes = require('./routes/userRoutes');
-const photoRoutes = require('./routes/photoRoutes'); 
+const photoRoutes = require('./routes/photoRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 
 const app = express();
 
+// --- 中间件配置 ---
+
+app.use(helmet()); // 新增：使用 helmet 设置安全HTTP头
 app.use(cors());
 app.use(express.json());
 
 // --- 静态文件服务 ---
-// 让 'uploads' 目录下的文件可以通过 URL 直接访问
-// 例如 http://localhost:3001/1678886400000.jpg
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
 
 // --- API 路由 ---
 app.get('/api/test', (req, res) => {
@@ -26,6 +27,7 @@ app.get('/api/test', (req, res) => {
 app.use('/api/users', userRoutes);
 app.use('/api/photos', photoRoutes);
 
+// 将评论路由挂载为图片路由的子路由
 photoRoutes.use('/:photoId/comments', commentRoutes);
 
 // --- 服务器启动 ---
