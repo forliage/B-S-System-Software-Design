@@ -101,3 +101,42 @@
 .delete-button:hover {
   background-color: #c82333;
 }
+
+.like-section {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.like-button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.like-button:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.like-button.liked {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.like-button .heart-icon {
+  font-size: 1.2rem;
+}
+
+.like-count {
+  font-weight: 600;
+  color: #555;
+}

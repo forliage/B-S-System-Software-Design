@@ -30,4 +30,8 @@ router.delete('/:id', protect, photoController.deletePhoto);
 // PUT /api/photos/:id
 router.put('/:id', protect, photoController.updatePhotoInfo);
 
+// 点赞/取消点赞图片 (新增)
+// POST /api/photos/:id/like
+router.post('/:id/like', protect, photoController.toggleLike);
+
 module.exports = router;

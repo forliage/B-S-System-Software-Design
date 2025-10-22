@@ -9,17 +9,29 @@ function PhotoDetail() {
   const [photo, setPhoto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { user, token } = useContext(AuthContext);
+  const [isLiked, setIsLiked] = useState(false); // 新增：追踪点赞状态
+  const [likeCount, setLikeCount] = useState(0); // 新增：追踪点赞数
+  const { user, token, isAuthenticated } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchPhoto = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/photos/${id}`);
-        if (!response.ok) {
-          throw new Error('图片未找到');
+        // 为了获取当前用户的点赞状态，我们需要在请求中携带token
+        // 所以后端 getPhotoById 接口也需要调整
+        const headers = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
         }
+
+        const response = await fetch(`http://localhost:3001/api/photos/${id}`, { headers });
+        
+        if (!response.ok) throw new Error('图片未找到');
+        
         const data = await response.json();
-        setPhoto(data);
+        setPhoto(data.photo);
+        setIsLiked(data.isLiked); // 从后端获取点赞状态
+        setLikeCount(data.photo.like_count);
+
       } catch (err) {
         setError(err.message);
       } finally {
@@ -27,8 +39,7 @@ function PhotoDetail() {
       }
     };
     fetchPhoto();
-  }, [id]);
-
+  }, [id, token]);
   const handleDelete = async () => {
     if (!window.confirm('您确定要永久删除这张图片吗？')) {
       return;
@@ -51,6 +62,28 @@ function PhotoDetail() {
       navigate('/dashboard'); // 删除成功后返回图库
     } catch (err) {
       alert(`删除失败: ${err.message}`);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录再点赞！');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/photos/${id}/like`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setIsLiked(data.liked);
+        setLikeCount(data.likeCount);
+      }
+    } catch (err) {
+      console.error('点赞失败', err);
     }
   };
 
@@ -77,13 +110,21 @@ function PhotoDetail() {
       <div className="photo-meta-container">
         <h2>{photo.title}</h2>
         <p>{photo.description || '暂无描述'}</p>
+        
+        <div className="like-section">
+          <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
+            <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>
+            {isLiked ? '已赞' : '点赞'}
+          </button>
+          <span className="like-count">{likeCount} 人赞过</span>
+        </div>
+        
         <div className="meta-item">
           <strong>上传时间:</strong>
           <span>{new Date(photo.upload_time).toLocaleString()}</span>
         </div>
         {isOwner && (
           <div className="owner-actions">
-            {/* 新增编辑按钮 */}
             <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
             <button onClick={handleDelete} className="delete-button">删除图片</button>
           </div>

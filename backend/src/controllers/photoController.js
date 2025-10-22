@@ -1,6 +1,7 @@
 const db = require('../db');
 const fs = require('fs');
 const path = require('path');
+const jwt = require('jsonwebtoken'); 
 
 // 上传图片的函数
 exports.uploadPhoto = async (req, res) => {
@@ -57,7 +58,7 @@ exports.getUserPhotos = async (req, res) => {
 
 // 获取单张图片详情 (新增)
 exports.getPhotoById = async (req, res) => {
-  const { id } = req.params; // 从 URL 中获取图片 ID
+  const { id } = req.params;
 
   try {
     const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
@@ -67,10 +68,30 @@ exports.getPhotoById = async (req, res) => {
       return res.status(404).json({ error: '图片未找到' });
     }
 
-    // 为图片添加完整的 URL
     photo.url = `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}`;
-    
-    res.status(200).json(photo);
+
+    let isLiked = false;
+    // 检查请求头中是否有 token
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        const [likes] = await db.query(
+          'SELECT * FROM `Like` WHERE user_id = ? AND photo_id = ?',
+          [userId, id]
+        );
+        if (likes.length > 0) {
+          isLiked = true;
+        }
+      } catch (error) {
+        // Token 无效或过期，不影响匿名用户查看，isLiked 保持 false
+      }
+    }
+
+    // 返回包含图片信息和当前用户点赞状态的对象
+    res.status(200).json({ photo, isLiked });
   } catch (error) {
     console.error('获取图片详情失败:', error);
     res.status(500).json({ error: '服务器内部错误' });
@@ -159,5 +180,69 @@ exports.updatePhotoInfo = async (req, res) => {
   } catch (error) {
     console.error('更新图片信息失败:', error);
     res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 点赞/取消点赞图片 (新增)
+exports.toggleLike = async (req, res) => {
+  const { id } = req.params; // 图片 ID
+  const { userId } = req.user; // 当前登录用户 ID
+
+  const connection = await db.getConnection(); // 使用事务来保证数据一致性
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. 检查用户是否已经点赞
+    const [likes] = await connection.query(
+      'SELECT * FROM `Like` WHERE user_id = ? AND photo_id = ?',
+      [userId, id]
+    );
+
+    let liked = false;
+    if (likes.length > 0) {
+      // 如果已点赞，则取消点赞
+      await connection.query(
+        'DELETE FROM `Like` WHERE user_id = ? AND photo_id = ?',
+        [userId, id]
+      );
+      await connection.query(
+        'UPDATE Photo SET like_count = like_count - 1 WHERE photo_id = ? AND like_count > 0',
+        [id]
+      );
+      liked = false;
+    } else {
+      // 如果未点赞，则添加点赞
+      await connection.query(
+        'INSERT INTO `Like` (user_id, photo_id) VALUES (?, ?)',
+        [userId, id]
+      );
+      await connection.query(
+        'UPDATE Photo SET like_count = like_count + 1 WHERE photo_id = ?',
+        [id]
+      );
+      liked = true;
+    }
+
+    // 查询最新的点赞数
+    const [photos] = await connection.query(
+      'SELECT like_count FROM Photo WHERE photo_id = ?',
+      [id]
+    );
+
+    await connection.commit(); // 提交事务
+
+    res.status(200).json({
+      message: liked ? '点赞成功' : '取消点赞成功',
+      liked: liked,
+      likeCount: photos[0].like_count,
+    });
+
+  } catch (error) {
+    await connection.rollback(); // 如果出错，回滚事务
+    console.error('点赞操作失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  } finally {
+    connection.release(); // 释放连接
   }
 };
