@@ -9,26 +9,23 @@ function PhotoDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // 组件状态
   const [photo, setPhoto] = useState(null);
-  const [userPhotos, setUserPhotos] = useState([]); // 用于轮播
+  const [userPhotos, setUserPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // 点赞相关状态
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   
-  // 轮播相关状态
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const { user, token, isAuthenticated } = useContext(AuthContext);
 
-  // 获取图片详情和相关数据
   useEffect(() => {
     const fetchPhoto = async () => {
       setLoading(true);
+      setError('');
       try {
         const headers = {};
         if (token) {
@@ -43,8 +40,8 @@ function PhotoDetail() {
         
         const data = await response.json();
         setPhoto(data.photo);
-        setUserPhotos(data.userPhotos); // 获取该用户的所有图片列表
-        setIsLiked(data.isLiked);       // 获取当前用户的点赞状态
+        setUserPhotos(data.userPhotos);
+        setIsLiked(data.isLiked);
         setLikeCount(data.photo.like_count);
 
       } catch (err) {
@@ -56,23 +53,19 @@ function PhotoDetail() {
     fetchPhoto();
   }, [id, token]);
 
-  // 处理删除
   const handleDelete = async () => {
     if (!window.confirm('您确定要永久删除这张图片吗？')) {
       return;
     }
-
     try {
       const response = await fetch(`http://localhost:3001/api/photos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || '删除失败');
       }
-      
       alert('图片删除成功！');
       navigate('/dashboard');
     } catch (err) {
@@ -80,14 +73,12 @@ function PhotoDetail() {
     }
   };
 
-  // 处理点赞/取消点赞
   const handleLike = async () => {
     if (!isAuthenticated) {
       alert('请先登录再点赞！');
       navigate('/login');
       return;
     }
-
     try {
       const response = await fetch(`http://localhost:3001/api/photos/${id}/like`, {
         method: 'POST',
@@ -103,7 +94,6 @@ function PhotoDetail() {
     }
   };
   
-  // --- 轮播控制逻辑 ---
   const openCarousel = () => {
     const index = userPhotos.findIndex(p => p.photo_id === photo.photo_id);
     if (index !== -1) {
@@ -118,18 +108,13 @@ function PhotoDetail() {
   const goToNext = () => {
       setCurrentIndex(prev => (prev === userPhotos.length - 1 ? 0 : prev + 1));
   };
-  // --- 结束轮播控制逻辑 ---
 
-
-  // --- 渲染逻辑 ---
   if (loading) {
     return <div className="detail-loading">正在加载图片详情...</div>;
   }
-
   if (error) {
     return <div className="detail-error">错误: {error}</div>;
   }
-
   if (!photo) {
     return <div className="detail-error">未找到图片。</div>;
   }
@@ -146,6 +131,13 @@ function PhotoDetail() {
           <h2>{photo.title}</h2>
           <p>{photo.description || '暂无描述'}</p>
           
+          <div className="meta-item tags-container-detail">
+            <strong>标签:</strong>
+            {photo.tags && photo.tags.length > 0 ? photo.tags.map(tag => (
+              <span key={tag} className="tag-detail">#{tag}</span>
+            )) : '无'}
+          </div>
+
           <div className="like-section">
             <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
               <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>

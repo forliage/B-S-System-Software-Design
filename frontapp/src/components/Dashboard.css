@@ -65,3 +65,40 @@
   text-decoration: none;
   color: inherit;
 }
+
+.search-form {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.search-form input {
+  width: 300px;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.search-form button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tags-container {
+  margin-top: 0.5rem;
+}
+.tag {
+  display: inline-block;
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  margin-right: 0.3rem;
+  cursor: pointer;
+}
+.tag:hover {
+  background-color: #ced4da;
+}

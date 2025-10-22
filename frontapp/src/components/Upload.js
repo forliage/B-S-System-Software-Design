@@ -8,6 +8,7 @@ function Upload() {
   const [preview, setPreview] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState(''); // 新增 tags state
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -19,7 +20,6 @@ function Upload() {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // 创建图片预览
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
@@ -41,15 +41,15 @@ function Upload() {
     setIsError(false);
 
     const formData = new FormData();
-    formData.append('image', file); // 'image' 必须与后端 multer 的字段名一致
+    formData.append('image', file);
     formData.append('title', title);
     formData.append('description', description);
+    formData.append('tags', tags); // 将 tags 添加到 formData
 
     try {
       const response = await fetch('http://localhost:3001/api/photos/upload', {
         method: 'POST',
         headers: {
-          // 注意：使用 FormData 时，浏览器会自动设置 Content-Type，我们不需要手动设置
           'Authorization': `Bearer ${token}`,
         },
         body: formData,
@@ -60,7 +60,7 @@ function Upload() {
       if (response.ok) {
         setMessage('图片上传成功！');
         setIsError(false);
-        setTimeout(() => navigate('/dashboard'), 1500); // 1.5秒后跳转
+        setTimeout(() => navigate('/dashboard'), 1500);
       } else {
         setMessage(data.error || '上传失败');
         setIsError(true);
@@ -99,6 +99,17 @@ function Upload() {
         <div className="form-group">
           <label htmlFor="description">描述 (可选)</label>
           <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows="4" />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="tags">标签 (用逗号分隔)</label>
+          <input
+            type="text"
+            id="tags"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="例如：风景, 旅行, 夏天"
+          />
         </div>
         
         <button type="submit" className="upload-button" disabled={uploading}>

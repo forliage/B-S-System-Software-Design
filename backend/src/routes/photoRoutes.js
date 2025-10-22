@@ -22,7 +22,7 @@ router.post('/upload', protect, upload.single('image'), photoController.uploadPh
 
 // 获取当前用户的所有图片 (新增)
 // GET /api/photos/my-photos
-router.get('/my-photos', protect, photoController.getUserPhotos);
+router.get('/my-photos', protect, photoController.searchPhotos);
 
 router.get('/:id', photoController.getPhotoById);
 router.delete('/:id', protect, photoController.deletePhoto);

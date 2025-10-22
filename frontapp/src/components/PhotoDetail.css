@@ -141,3 +141,16 @@
   font-weight: 600;
   color: #555;
 }
+
+.tags-container-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.tag-detail {
+    background-color: #f1f1f1;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
