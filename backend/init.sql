@@ -34,3 +34,13 @@ CREATE TABLE `Like` (
 
 -- 在 Photo 表中添加 like_count 字段
 ALTER TABLE `Photo` ADD COLUMN `like_count` INT DEFAULT 0;
+
+CREATE TABLE `Comment` (
+  `comment_id` INT AUTO_INCREMENT PRIMARY KEY,
+  `photo_id` INT NOT NULL,
+  `user_id` INT NOT NULL,
+  `content` TEXT NOT NULL,
+  `comment_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`photo_id`) REFERENCES `Photo`(`photo_id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `User`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

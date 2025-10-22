@@ -5,7 +5,8 @@ require('dotenv').config();
 
 // 引入路由
 const userRoutes = require('./routes/userRoutes');
-const photoRoutes = require('./routes/photoRoutes'); // 新增
+const photoRoutes = require('./routes/photoRoutes'); 
+const commentRoutes = require('./routes/commentRoutes');
 
 const app = express();
 
@@ -23,7 +24,9 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend is running!' });
 });
 app.use('/api/users', userRoutes);
-app.use('/api/photos', photoRoutes); // 新增
+app.use('/api/photos', photoRoutes);
+
+photoRoutes.use('/:photoId/comments', commentRoutes);
 
 // --- 服务器启动 ---
 const PORT = process.env.PORT || 3001;

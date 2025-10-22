@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import CommentSection from './CommentSection'; 
 import './PhotoDetail.css';
 
 function PhotoDetail() {
@@ -103,6 +104,7 @@ function PhotoDetail() {
   const isOwner = user && user.userId === photo.user_id;
 
   return (
+    <>
     <div className="photo-detail-container">
       <div className="photo-image-container">
         <img src={photo.url} alt={photo.title} />
@@ -131,6 +133,10 @@ function PhotoDetail() {
         )}
       </div>
     </div>
+    <div className="photo-detail-container">
+         <CommentSection photoId={photo.photo_id} />
+      </div>
+    </>
   );
 }
 
