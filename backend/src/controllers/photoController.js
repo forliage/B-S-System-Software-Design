@@ -2,9 +2,8 @@ const db = require('../db');
 const fs = require('fs');
 const path = require('path');
 
-// 上传图片的函数 (保持不变)
+// 上传图片的函数
 exports.uploadPhoto = async (req, res) => {
-  // ... (代码不变)
   const { title, description } = req.body;
   const { filename, path: filepath } = req.file;
   const { userId } = req.user;
@@ -113,6 +112,52 @@ exports.deletePhoto = async (req, res) => {
     res.status(200).json({ message: '图片删除成功' });
   } catch (error) {
     console.error('删除图片失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 更新图片信息 (新增)
+exports.updatePhotoInfo = async (req, res) => {
+  const { id } = req.params; // 图片ID
+  const { title, description } = req.body; // 新的标题和描述
+  const { userId } = req.user; // 当前登录用户ID
+
+  // 基础验证
+  if (!title) {
+    return res.status(400).json({ error: '标题不能为空' });
+  }
+
+  try {
+    // 1. 验证图片是否存在且属于当前用户
+    const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+    const photo = photos[0];
+
+    if (!photo) {
+      return res.status(404).json({ error: '图片未找到' });
+    }
+
+    if (photo.user_id !== userId) {
+      return res.status(403).json({ error: '无权修改此图片' });
+    }
+
+    // 2. 更新数据库
+    await db.query(
+      'UPDATE Photo SET title = ?, description = ? WHERE photo_id = ?',
+      [title, description || null, id] // 如果 description 为空字符串，存为 null
+    );
+    
+    // 3. 查询更新后的数据并返回
+    const [updatedPhotos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+    const updatedPhoto = updatedPhotos[0];
+    updatedPhoto.url = `http://localhost:3001/${updatedPhoto.filepath.replace(/\\/g, '/')}`;
+
+    res.status(200).json({
+      message: '图片信息更新成功',
+      photo: updatedPhoto,
+    });
+
+  } catch (error) {
+    console.error('更新图片信息失败:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
 };

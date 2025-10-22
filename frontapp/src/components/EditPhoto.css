@@ -1,0 +1,69 @@
+.edit-photo-container {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.edit-photo-form h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.current-photo-preview {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.current-photo-preview img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+}
+
+.edit-photo-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.edit-photo-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.edit-photo-form input,
+.edit-photo-form textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.edit-buttons button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.save-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+}

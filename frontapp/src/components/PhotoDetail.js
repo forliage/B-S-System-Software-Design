@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import './PhotoDetail.css';
 
@@ -82,7 +82,11 @@ function PhotoDetail() {
           <span>{new Date(photo.upload_time).toLocaleString()}</span>
         </div>
         {isOwner && (
-          <button onClick={handleDelete} className="delete-button">删除图片</button>
+          <div className="owner-actions">
+            {/* 新增编辑按钮 */}
+            <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
+            <button onClick={handleDelete} className="delete-button">删除图片</button>
+          </div>
         )}
       </div>
     </div>

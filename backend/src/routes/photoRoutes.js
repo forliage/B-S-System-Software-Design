@@ -27,4 +27,7 @@ router.get('/my-photos', protect, photoController.getUserPhotos);
 router.get('/:id', photoController.getPhotoById);
 router.delete('/:id', protect, photoController.deletePhoto);
 
+// PUT /api/photos/:id
+router.put('/:id', protect, photoController.updatePhotoInfo);
+
 module.exports = router;
