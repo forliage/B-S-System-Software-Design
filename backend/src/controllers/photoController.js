@@ -233,3 +233,132 @@ exports.searchPhotos = async (req, res) => {
         res.status(500).json({ error: '服务器内部错误' });
     }
 };
+const { applyFilter } = require('../utils/filters');
+const sharp = require('sharp');
+
+// 编辑图片（裁剪和滤镜）
+exports.editPhoto = async (req, res) => {
+  const { id } = req.params;
+  const { crop, filter } = req.body;
+  const { userId } = req.user;
+
+  try {
+    const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+    let photo = photos[0];
+    if (!photo) return res.status(404).json({ error: '图片未找到' });
+    if (photo.user_id !== userId) return res.status(403).json({ error: '无权修改此图片' });
+
+    const sourcePath = path.join(__dirname, '..', '..', photo.filepath);
+
+    if (!photo.original_filepath) {
+      const backupDir = path.join(__dirname, '..', '..', 'uploads', 'backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const backupFilename = `${Date.now()}_${photo.filename}`;
+      const backupFilepath = path.join('uploads', 'backups', backupFilename);
+      const backupDestPath = path.join(__dirname, '..', '..', backupFilepath);
+
+      fs.copyFileSync(sourcePath, backupDestPath);
+
+      await db.query('UPDATE Photo SET original_filepath = ? WHERE photo_id = ?', [backupFilepath, id]);
+      const [updatedPhotos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+      photo = updatedPhotos[0];
+    }
+
+    const imageBuffer = fs.readFileSync(sourcePath);
+    let image = sharp(imageBuffer);
+
+    if (crop && crop.width > 0 && crop.height > 0) {
+      const metadata = await image.metadata();
+      const cropOptions = {
+        left: Math.round(crop.x * metadata.width / 100),
+        top: Math.round(crop.y * metadata.height / 100),
+        width: Math.round(crop.width * metadata.width / 100),
+        height: Math.round(crop.height * metadata.height / 100)
+      };
+      image = image.extract(cropOptions);
+    }
+
+    if (filter) {
+      const filteredImageBuffer = await image.toBuffer();
+      image = applyFilter(filteredImageBuffer, filter);
+    }
+
+    await image.toFile(sourcePath);
+
+    res.status(200).json({
+      message: '图片编辑成功',
+      photo: {
+        ...photo,
+        url: `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}?t=${new Date().getTime()}`
+      }
+    });
+
+  } catch (error) {
+    console.error('图片编辑失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 收藏/取消收藏图片
+exports.toggleFavorite = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.user;
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [favorites] = await connection.query('SELECT * FROM `Favorite` WHERE user_id = ? AND photo_id = ?', [userId, id]);
+    let favorited = false;
+    if (favorites.length > 0) {
+      await connection.query('DELETE FROM `Favorite` WHERE user_id = ? AND photo_id = ?', [userId, id]);
+      favorited = false;
+    } else {
+      await connection.query('INSERT INTO `Favorite` (user_id, photo_id) VALUES (?, ?)', [userId, id]);
+      favorited = true;
+    }
+    await connection.commit();
+    res.status(200).json({
+      message: favorited ? '收藏成功' : '取消收藏成功',
+      favorited,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('收藏操作失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  } finally {
+    connection.release();
+  }
+};
+
+// 获取用户收藏的图片
+exports.getFavoritePhotos = async (req, res) => {
+    const { userId } = req.user;
+    try {
+        const [photos] = await db.query(
+            `SELECT p.* FROM Photo p
+             JOIN Favorite f ON p.photo_id = f.photo_id
+             WHERE f.user_id = ?
+             ORDER BY f.fav_time DESC`,
+            [userId]
+        );
+
+        for (let photo of photos) {
+            const [tags] = await db.query(
+                `SELECT t.name FROM Tag t JOIN PhotoTag pt ON t.tag_id = pt.tag_id WHERE pt.photo_id = ?`,
+                [photo.photo_id]
+            );
+            photo.tags = tags.map(t => t.name);
+        }
+
+        const photosWithFullUrl = photos.map(photo => ({
+            ...photo,
+            url: `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}`
+        }));
+
+        res.status(200).json(photosWithFullUrl);
+    } catch (error) {
+        console.error('获取收藏图片失败:', error);
+        res.status(500).json({ error: '服务器内部错误' });
+    }
+};

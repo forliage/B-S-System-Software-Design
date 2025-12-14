@@ -19,6 +19,7 @@ CREATE TABLE `Photo` (
   `description` TEXT,
   `filename` VARCHAR(255) NOT NULL,
   `filepath` VARCHAR(512) NOT NULL,
+  `original_filepath` VARCHAR(512) NULL,
   `upload_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `User`(`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -56,4 +57,12 @@ CREATE TABLE `PhotoTag` (
   PRIMARY KEY (`photo_id`, `tag_id`),
   FOREIGN KEY (`photo_id`) REFERENCES `Photo`(`photo_id`) ON DELETE CASCADE,
   FOREIGN KEY (`tag_id`) REFERENCES `Tag`(`tag_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE `Favorite` (
+  `user_id` INT NOT NULL,
+  `photo_id` INT NOT NULL,
+  `fav_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`, `photo_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `User`(`user_id`) ON DELETE CASCADE,
+  FOREIGN KEY (`photo_id`) REFERENCES `Photo`(`photo_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

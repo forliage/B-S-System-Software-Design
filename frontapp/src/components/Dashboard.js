@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import CarouselModal from './CarouselModal';
-import './Dashboard.css';
 
 function Dashboard() {
   const [photos, setPhotos] = useState([]);
@@ -12,9 +10,6 @@ function Dashboard() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('tag') || '');
-
-  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -59,78 +54,80 @@ function Dashboard() {
     }
   };
 
-  const handleTagClick = (tag) => {
+  const handleTagClick = (tag, e) => {
+    e.stopPropagation();
     setSearchTerm(tag);
     setSearchParams({ tag: tag });
   };
 
-  const openCarousel = (index) => {
-    setCurrentIndex(index);
-    setIsCarouselOpen(true);
-  };
-  const closeCarousel = () => setIsCarouselOpen(false);
-  const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => (prevIndex === 0 ? photos.length - 1 : prevIndex - 1));
-  };
-  const goToNext = () => {
-    setCurrentIndex((prevIndex) => (prevIndex === photos.length - 1 ? 0 : prevIndex + 1));
-  };
-
   if (loading) {
-    return <div className="loading">正在加载您的图片...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <span className="text-xl text-gray-600">正在加载您的图片...</span>
+      </div>
+    );
   }
   if (error) {
-    return <div className="error">错误: {error}</div>;
+    return (
+      <div className="flex justify-center items-center h-64 bg-red-50 p-4 rounded-lg">
+        <span className="text-xl text-red-700">错误: {error}</span>
+      </div>
+    );
   }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>{user.username}的图库</h1>
-        <p>这里是您上传的所有精彩瞬间。</p>
-        <form onSubmit={handleSearch} className="search-form">
-          <input 
-            type="text" 
-            placeholder="按标签搜索..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button type="submit">搜索</button>
+    <div className="container mx-auto px-4 py-8">
+      <header className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">欢迎回来, {user.username}!</h1>
+        <p className="text-lg text-gray-600">这里是您上传的所有精彩瞬间。</p>
+        <form onSubmit={handleSearch} className="mt-6 max-w-lg mx-auto">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="按标签搜索..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full py-3 pl-4 pr-12 text-gray-700 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button type="submit" className="absolute top-0 right-0 mt-2 mr-2 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600">
+              搜索
+            </button>
+          </div>
         </form>
       </header>
 
       {photos.length === 0 ? (
-        <div className="no-photos">
-          {searchParams.get('tag') ? '没有找到匹配该标签的图片。' : '您还没有上传任何图片。'}
+        <div className="text-center text-gray-500 mt-16">
+          <h2 className="text-2xl font-semibold">
+            {searchParams.get('tag') ? '没有找到匹配的图片' : '您的图库还是空的'}
+          </h2>
+          <p className="mt-2">
+            {searchParams.get('tag')
+              ? '请尝试其他标签或清除搜索条件。'
+              : '立刻上传您的第一张照片吧！'}
+          </p>
         </div>
       ) : (
-        <div className="photo-grid">
-          {photos.map((photo, index) => (
-            <div key={photo.photo_id} className="photo-card">
-              <img src={photo.url} alt={photo.title} onClick={() => openCarousel(index)} />
-              <div className="photo-info">
-                <h3>{photo.title}</h3>
-                <div className="tags-container">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          {photos.map((photo) => (
+            <Link to={`/photo/${photo.photo_id}`} key={photo.photo_id} className="group block bg-white rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
+              <div className="relative">
+                <img src={photo.url} alt={photo.title} className="w-full h-48 object-cover" />
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
+              </div>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-gray-800 truncate">{photo.title}</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
                   {photo.tags && photo.tags.map(tag => (
-                    <span key={tag} className="tag" onClick={(e) => { e.stopPropagation(); handleTagClick(tag); }}>
+                    <button key={tag} onClick={(e) => handleTagClick(tag, e)} className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs hover:bg-gray-200">
                       #{tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
-      )}
-      
-      {isCarouselOpen && (
-        <CarouselModal
-          photos={photos}
-          currentIndex={currentIndex}
-          onClose={closeCarousel}
-          onPrev={goToPrevious}
-          onNext={goToNext}
-        />
       )}
     </div>
   );
