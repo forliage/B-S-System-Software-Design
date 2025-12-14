@@ -55,8 +55,11 @@ router.put('/:id', protect, photoValidationRules, photoController.updatePhotoInf
 
 // --- 其他路由保持不变 ---
 router.get('/my-photos', protect, photoController.searchPhotos);
+router.get('/favorites', protect, photoController.getFavoritePhotos);
 router.get('/:id', photoController.getPhotoById);
 router.delete('/:id', protect, photoController.deletePhoto);
 router.post('/:id/like', protect, photoController.toggleLike);
+router.post('/:id/favorite', protect, photoController.toggleFavorite);
+router.post('/:id/edit', protect, photoController.editPhoto);
 
 module.exports = router;

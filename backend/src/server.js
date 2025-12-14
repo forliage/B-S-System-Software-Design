@@ -8,6 +8,7 @@ require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const photoRoutes = require('./routes/photoRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const aiRoutes = require('./routes/aiRoutes'); // 新增：引入AI路由
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get('/api/test', (req, res) => {
 });
 app.use('/api/users', userRoutes);
 app.use('/api/photos', photoRoutes);
+app.use('/api/ai', aiRoutes); // 新增：使用AI路由
 
 // 将评论路由挂载为图片路由的子路由
 photoRoutes.use('/:photoId/comments', commentRoutes);

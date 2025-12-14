@@ -2,23 +2,18 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import CommentSection from './CommentSection';
-import CarouselModal from './CarouselModal';
-import './PhotoDetail.css';
 
 function PhotoDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   
   const [photo, setPhoto] = useState(null);
-  const [userPhotos, setUserPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  
-  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   const { user, token, isAuthenticated } = useContext(AuthContext);
 
@@ -34,13 +29,10 @@ function PhotoDetail() {
 
         const response = await fetch(`http://localhost:3001/api/photos/${id}`, { headers });
         
-        if (!response.ok) {
-          throw new Error('图片未找到或加载失败');
-        }
+        if (!response.ok) throw new Error('图片未找到或加载失败');
         
         const data = await response.json();
         setPhoto(data.photo);
-        setUserPhotos(data.userPhotos);
         setIsLiked(data.isLiked);
         setLikeCount(data.photo.like_count);
 
@@ -54,9 +46,7 @@ function PhotoDetail() {
   }, [id, token]);
 
   const handleDelete = async () => {
-    if (!window.confirm('您确定要永久删除这张图片吗？')) {
-      return;
-    }
+    if (!window.confirm('您确定要永久删除这张图片吗？')) return;
     try {
       const response = await fetch(`http://localhost:3001/api/photos/${id}`, {
         method: 'DELETE',
@@ -74,11 +64,7 @@ function PhotoDetail() {
   };
 
   const handleLike = async () => {
-    if (!isAuthenticated) {
-      alert('请先登录再点赞！');
-      navigate('/login');
-      return;
-    }
+    if (!isAuthenticated) return navigate('/login');
     try {
       const response = await fetch(`http://localhost:3001/api/photos/${id}/like`, {
         method: 'POST',
@@ -89,91 +75,90 @@ function PhotoDetail() {
         setIsLiked(data.liked);
         setLikeCount(data.likeCount);
       }
-    } catch (err) {
-      console.error('点赞失败', err);
-    }
-  };
-  
-  const openCarousel = () => {
-    const index = userPhotos.findIndex(p => p.photo_id === photo.photo_id);
-    if (index !== -1) {
-        setCurrentIndex(index);
-        setIsCarouselOpen(true);
-    }
-  };
-  const closeCarousel = () => setIsCarouselOpen(false);
-  const goToPrevious = () => {
-      setCurrentIndex(prev => (prev === 0 ? userPhotos.length - 1 : prev - 1));
-  };
-  const goToNext = () => {
-      setCurrentIndex(prev => (prev === userPhotos.length - 1 ? 0 : prev + 1));
+    } catch (err) { console.error('点赞失败', err); }
   };
 
-  if (loading) {
-    return <div className="detail-loading">正在加载图片详情...</div>;
-  }
-  if (error) {
-    return <div className="detail-error">错误: {error}</div>;
-  }
-  if (!photo) {
-    return <div className="detail-error">未找到图片。</div>;
-  }
+  const handleFavorite = async () => {
+    if (!isAuthenticated) return navigate('/login');
+    try {
+      const response = await fetch(`http://localhost:3001/api/photos/${id}/favorite`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setIsFavorited(data.favorited);
+      }
+    } catch (err) { console.error('收藏失败', err); }
+  };
+
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen">
+        <p>正在加载...</p>
+    </div>
+  );
+  if (error) return (
+    <div className="text-center mt-10">
+        <p className="mt-4 text-lg text-red-700">错误: {error}</p>
+    </div>
+  );
+  if (!photo) return <div className="text-center mt-10 text-lg text-gray-600">未找到图片。</div>;
 
   const isOwner = user && user.userId === photo.user_id;
 
   return (
-    <>
-      <div className="photo-detail-container">
-        <div className="photo-image-container" onClick={openCarousel}>
-          <img src={photo.url} alt={photo.title} />
+    <div className="container mx-auto px-4 py-8">
+      <div className="bg-white shadow-xl rounded-lg overflow-hidden md:flex">
+        <div className="md:w-1/2">
+          <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
         </div>
-        <div className="photo-meta-container">
-          <h2>{photo.title}</h2>
-          <p>{photo.description || '暂无描述'}</p>
-          
-          <div className="meta-item tags-container-detail">
-            <strong>标签:</strong>
-            {photo.tags && photo.tags.length > 0 ? photo.tags.map(tag => (
-              <span key={tag} className="tag-detail">#{tag}</span>
-            )) : '无'}
-          </div>
+        <div className="md:w-1/2 p-8 flex flex-col justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-4">{photo.title}</h1>
+            <p className="text-gray-600 mb-6">{photo.description || '暂无描述'}</p>
 
-          <div className="like-section">
-            <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
-              <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>
-              {isLiked ? '已赞' : '点赞'}
-            </button>
-            <span className="like-count">{likeCount} 人赞过</span>
-          </div>
-          
-          <div className="meta-item">
-            <strong>上传时间:</strong>
-            <span>{new Date(photo.upload_time).toLocaleString()}</span>
-          </div>
-
-          {isOwner && (
-            <div className="owner-actions">
-              <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
-              <button onClick={handleDelete} className="delete-button">删除图片</button>
+            <div className="text-gray-500 mb-2">
+              <span>{new Date(photo.upload_time).toLocaleString()}</span>
             </div>
-          )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              {photo.tags && photo.tags.length > 0 ? photo.tags.map(tag => (
+                <span key={tag} className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm">#{tag}</span>
+              )) : <span className="text-gray-500 text-sm">无标签</span>}
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex items-center space-x-6 mt-8">
+              <button onClick={handleLike} className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors">
+                <span>{isLiked ? '❤️' : '🤍'}</span>
+                <span>{likeCount} 赞</span>
+              </button>
+              <button onClick={handleFavorite} className="flex items-center space-x-2 text-gray-600 hover:text-yellow-500 transition-colors">
+                <span>{isFavorited ? '⭐' : '☆'}</span>
+                <span>{isFavorited ? '已收藏' : '收藏'}</span>
+              </button>
+            </div>
+
+            {isOwner && (
+              <div className="flex items-center space-x-4 mt-6 border-t pt-6">
+                <Link to={`/photo/${id}/edit`} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  编辑
+                </Link>
+                <button onClick={handleDelete} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                  删除
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
-      <div className="photo-detail-container">
+      <div className="mt-8 bg-white shadow-xl rounded-lg p-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">评论区</h2>
         <CommentSection photoId={photo.photo_id} />
       </div>
-
-      {isCarouselOpen && (
-        <CarouselModal
-            photos={userPhotos}
-            currentIndex={currentIndex}
-            onClose={closeCarousel}
-            onPrev={goToPrevious}
-            onNext={goToNext}
-        />
-      )}
-    </>
+    </div>
   );
 }
 
