@@ -8,6 +8,7 @@ import Upload from './components/Upload';
 import Dashboard from './components/Dashboard'; // 导入新的 Dashboard 组件
 import PhotoDetail from './components/PhotoDetail'; 
 import EditPhoto from './components/EditPhoto';
+import Favorites from './components/Favorites';
 import './App.css';
 
 // 简单的主页
@@ -63,6 +64,14 @@ function App() {
           element={
             <ProtectedRoute>
               <EditPhoto />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <Favorites />
             </ProtectedRoute>
           }
         />

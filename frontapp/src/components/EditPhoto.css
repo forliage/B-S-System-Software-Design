@@ -1,60 +1,64 @@
 .edit-photo-container {
-  max-width: 700px;
+  max-width: 900px;
   margin: 2rem auto;
   padding: 2rem;
-  background: #fff;
+  background-color: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.edit-photo-form h2 {
-  text-align: center;
+.image-preview-container {
   margin-bottom: 2rem;
-}
-
-.current-photo-preview {
   text-align: center;
-  margin-bottom: 2rem;
 }
 
-.current-photo-preview img {
+.image-preview-container img {
   max-width: 100%;
-  max-height: 300px;
-  border-radius: 8px;
-}
-
-.edit-photo-form .form-group {
-  margin-bottom: 1.5rem;
-}
-
-.edit-photo-form label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.edit-photo-form input,
-.edit-photo-form textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
+  max-height: 500px;
   border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 1rem;
+}
+
+.edit-controls {
+  margin-top: 1rem;
+}
+
+.control-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.slider-group label {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: #555;
+}
+
+.slider-group input[type="range"] {
+  width: 100%;
 }
 
 .edit-buttons {
-  display: flex;
-  gap: 1rem;
   margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
-.edit-buttons button {
-  flex: 1;
-  padding: 0.75rem;
+.save-button, .cancel-button {
+  padding: 0.8rem 1.5rem;
   border: none;
   border-radius: 4px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
 }
 
@@ -66,4 +70,38 @@
 .cancel-button {
   background-color: #6c757d;
   color: white;
+}
+
+.filter-options {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.filter-thumbnail {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.filter-thumbnail.active {
+  border-color: #007bff;
+}
+
+.filter-thumbnail img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.filter-thumbnail p {
+  text-align: center;
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
 }

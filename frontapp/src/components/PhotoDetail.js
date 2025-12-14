@@ -16,6 +16,7 @@ function PhotoDetail() {
   
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
   
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -42,6 +43,7 @@ function PhotoDetail() {
         setPhoto(data.photo);
         setUserPhotos(data.userPhotos);
         setIsLiked(data.isLiked);
+        setIsFavorited(data.isFavorited);
         setLikeCount(data.photo.like_count);
 
       } catch (err) {
@@ -93,6 +95,26 @@ function PhotoDetail() {
       console.error('点赞失败', err);
     }
   };
+
+  const handleFavorite = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录再收藏！');
+      navigate('/login');
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:3001/api/photos/${id}/favorite`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setIsFavorited(data.favorited);
+      }
+    } catch (err) {
+      console.error('收藏失败', err);
+    }
+  };
   
   const openCarousel = () => {
     const index = userPhotos.findIndex(p => p.photo_id === photo.photo_id);
@@ -138,22 +160,39 @@ function PhotoDetail() {
             )) : '无'}
           </div>
 
-          <div className="like-section">
-            <button onClick={handleLike} className={`like-button ${isLiked ? 'liked' : ''}`}>
-              <span className="heart-icon">{isLiked ? '♥' : '♡'}</span>
-              {isLiked ? '已赞' : '点赞'}
+          <div className="actions-section">
+            <button onClick={handleLike} className={`action-button ${isLiked ? 'liked' : ''}`}>
+              <span className="icon">{isLiked ? '♥' : '♡'}</span>
+              {isLiked ? '已赞' : '点赞'} ({likeCount})
             </button>
-            <span className="like-count">{likeCount} 人赞过</span>
+            <button onClick={handleFavorite} className={`action-button ${isFavorited ? 'favorited' : ''}`}>
+              <span className="icon">{isFavorited ? '★' : '☆'}</span>
+              {isFavorited ? '已收藏' : '收藏'}
+            </button>
           </div>
           
-          <div className="meta-item">
-            <strong>上传时间:</strong>
-            <span>{new Date(photo.upload_time).toLocaleString()}</span>
+          <div className="meta-grid">
+            <div className="meta-item">
+              <strong>上传时间:</strong>
+              <span>{new Date(photo.upload_time).toLocaleString()}</span>
+            </div>
+            {photo.exif_time && (
+              <div className="meta-item">
+                <strong>拍摄时间:</strong>
+                <span>{new Date(photo.exif_time).toLocaleString()}</span>
+              </div>
+            )}
+            {photo.resolution && (
+              <div className="meta-item">
+                <strong>分辨率:</strong>
+                <span>{photo.resolution}</span>
+              </div>
+            )}
           </div>
 
           {isOwner && (
             <div className="owner-actions">
-              <Link to={`/photo/${id}/edit`} className="edit-button">编辑信息</Link>
+              <Link to={`/photo/${id}/edit`} className="edit-button">高级编辑</Link>
               <button onClick={handleDelete} className="delete-button">删除图片</button>
             </div>
           )}

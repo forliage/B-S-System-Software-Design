@@ -2,58 +2,229 @@ const db = require('../db');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator'); // 引入验证结果处理器
+const { validationResult } = require('express-validator');
 const { findOrCreateTags } = require('./tagController');
+const sharp = require('sharp');
+const exifParser = require('exif-parser');
 
 // 上传新图片
 exports.uploadPhoto = async (req, res) => {
-  // 处理验证结果
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   const { title, description, tags } = req.body;
-  const { filename, path: filepath } = req.file;
+  const { filename, path: filepath, mimetype } = req.file;
   const { userId } = req.user;
 
-  // 注意：因为 express-validator 的 escape() 会转义逗号，
-  // 我们需要在控制器中而不是路由中分割标签
-  const tagNames = tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+  // 生成缩略图
+  const thumbnailFilename = `thumb-${filename}`;
+  const thumbnailPath = path.join('uploads', 'thumbnails', thumbnailFilename);
+
+  try {
+    // 确保 thumbnails 目录存在
+    fs.mkdirSync(path.join('uploads', 'thumbnails'), { recursive: true });
+
+    await sharp(filepath)
+      .resize(200)
+      .toFile(thumbnailPath);
+
+    // 提取 EXIF 数据
+    let exifData = {};
+    try {
+        const buffer = fs.readFileSync(filepath);
+        const parser = exifParser.create(buffer);
+        exifData = parser.parse();
+    } catch (err) {
+        console.warn('无法解析EXIF数据:', err.message);
+    }
+
+    const exif_time = exifData.tags && exifData.tags.DateTimeOriginal ? new Date(exifData.tags.DateTimeOriginal * 1000) : null;
+    const resolution = exifData.imageSize ? `${exifData.imageSize.width}x${exifData.imageSize.height}` : null;
+    const orientation = exifData.tags && exifData.tags.Orientation ? exifData.tags.Orientation.toString() : null;
+    // 注意：地理位置信息更复杂，这里仅作简化示例
+    const exif_location = null;
+
+    const tagNames = tags ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [result] = await connection.query(
+        'INSERT INTO Photo (user_id, title, description, filename, filepath, thumbnail_path, exif_time, resolution, orientation, exif_location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, title, description, filename, filepath, thumbnailPath, exif_time, resolution, orientation, exif_location]
+      );
+      const photoId = result.insertId;
+
+      if (tagNames.length > 0) {
+        const tagIds = await findOrCreateTags(tagNames);
+        const photoTagValues = tagIds.map(tagId => [photoId, tagId]);
+        await connection.query('INSERT INTO PhotoTag (photo_id, tag_id) VALUES ?', [photoTagValues]);
+      }
+
+      await connection.commit();
+
+      const [rows] = await connection.query('SELECT * FROM Photo WHERE photo_id = ?', [photoId]);
+      res.status(201).json({
+        message: '图片上传成功',
+        photo: rows[0],
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      console.error('图片上传数据库操作失败:', error);
+      res.status(500).json({ error: '服务器内部错误' });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('文件处理或图片上传失败:', error);
+    // 如果 sharp 或 exif 失败，确保删除已上传的文件
+    fs.unlink(filepath, (err) => {
+        if (err) console.error('清理上传文件失败:', err);
+    });
+    if (fs.existsSync(thumbnailPath)) {
+        fs.unlink(thumbnailPath, (err) => {
+            if (err) console.error('清理缩略图文件失败:', err);
+        });
+    }
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 获取收藏的图片
+exports.getFavoritePhotos = async (req, res) => {
+  const { userId } = req.user;
+  try {
+    const [photos] = await db.query(
+      `SELECT p.* FROM Photo p
+       JOIN Favorite f ON p.photo_id = f.photo_id
+       WHERE f.user_id = ?
+       ORDER BY f.fav_time DESC`,
+      [userId]
+    );
+
+    const photosWithFullUrl = photos.map(photo => ({
+        ...photo,
+        url: `http://localhost:3001/${photo.filepath.replace(/\\/g, '/')}`,
+        thumbnail_url: `http://localhost:3001/${photo.thumbnail_path.replace(/\\/g, '/')}`
+    }));
+
+    res.status(200).json(photosWithFullUrl);
+  } catch (error) {
+    console.error('获取收藏图片失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 高级图片编辑
+exports.editPhoto = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.user;
+  const { title, description, crop, filter, adjustments } = req.body;
+
+  try {
+    const [photos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+    const photo = photos[0];
+
+    if (!photo) {
+      return res.status(404).json({ error: '图片未找到' });
+    }
+    if (photo.user_id !== userId) {
+      return res.status(403).json({ error: '无权编辑此图片' });
+    }
+
+    const imagePath = path.join(__dirname, '..', '..', photo.filepath);
+    let image = sharp(imagePath);
+
+    // 1. 裁剪
+    if (crop) {
+      image.extract(crop);
+    }
+
+    // 2. 滤镜
+    if (filter) {
+      if (filter.startsWith('grayscale')) {
+        image.grayscale();
+      } else if (filter.startsWith('sepia')) {
+        image.sepia();
+      }
+      // ... 可以添加更多滤镜的解析
+    }
+
+    // 3. 调整 (修正 saturation -> saturate 的问题)
+    if (adjustments) {
+      image.modulate({
+        brightness: adjustments.brightness || 1,
+        contrast: adjustments.contrast || 1,
+        saturation: adjustments.saturate || 1, // 前端发送的是 saturate
+      });
+    }
+
+    const tempPath = imagePath + '.tmp';
+    await image.toFile(tempPath);
+
+    // 替换原图
+    fs.renameSync(tempPath, imagePath);
+
+    // 更新标题和描述
+    if (title !== undefined || description !== undefined) {
+      await db.query(
+        'UPDATE Photo SET title = ?, description = ? WHERE photo_id = ?',
+        [title !== undefined ? title : photo.title, description !== undefined ? description : photo.description, id]
+      );
+    }
+
+    const [updatedPhotos] = await db.query('SELECT * FROM Photo WHERE photo_id = ?', [id]);
+    const finalPhoto = { ...updatedPhotos[0], url: `http://localhost:3001/${updatedPhotos[0].filepath.replace(/\\/g, '/')}?t=${new Date().getTime()}` };
+
+    res.status(200).json({ message: '图片编辑成功', photo: finalPhoto });
+
+  } catch (error) {
+    console.error('图片编辑失败:', error);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+};
+
+// 收藏/取消收藏图片
+exports.toggleFavorite = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.user;
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    const [result] = await connection.query(
-      'INSERT INTO Photo (user_id, title, description, filename, filepath) VALUES (?, ?, ?, ?, ?)',
-      [userId, title, description, filename, filepath]
-    );
-    const photoId = result.insertId;
+    const [favorites] = await connection.query('SELECT * FROM `Favorite` WHERE user_id = ? AND photo_id = ?', [userId, id]);
 
-    if (tagNames.length > 0) {
-      const tagIds = await findOrCreateTags(tagNames);
-      const photoTagValues = tagIds.map(tagId => [photoId, tagId]);
-      await connection.query('INSERT INTO PhotoTag (photo_id, tag_id) VALUES ?', [photoTagValues]);
+    let favorited = false;
+    if (favorites.length > 0) {
+      // 如果已收藏，则取消收藏
+      await connection.query('DELETE FROM `Favorite` WHERE user_id = ? AND photo_id = ?', [userId, id]);
+      favorited = false;
+    } else {
+      // 如果未收藏，则添加收藏
+      await connection.query('INSERT INTO `Favorite` (user_id, photo_id) VALUES (?, ?)', [userId, id]);
+      favorited = true;
     }
 
     await connection.commit();
 
-    const [rows] = await connection.query('SELECT * FROM Photo WHERE photo_id = ?', [photoId]);
-    res.status(201).json({
-      message: '图片上传成功',
-      photo: rows[0],
+    res.status(200).json({
+      message: favorited ? '收藏成功' : '取消收藏成功',
+      favorited,
     });
 
   } catch (error) {
     await connection.rollback();
-    console.error('图片上传失败:', error);
+    console.error('收藏操作失败:', error);
     res.status(500).json({ error: '服务器内部错误' });
   } finally {
     connection.release();
   }
 };
-
 // 获取单张图片详情
 exports.getPhotoById = async (req, res) => {
   const { id } = req.params;
@@ -80,6 +251,7 @@ exports.getPhotoById = async (req, res) => {
     photo.tags = tags.map(t => t.name);
 
     let isLiked = false;
+    let isFavorited = false;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       try {
         const token = req.headers.authorization.split(' ')[1];
@@ -89,10 +261,16 @@ exports.getPhotoById = async (req, res) => {
           [decoded.userId, id]
         );
         if (likes.length > 0) isLiked = true;
+
+        const [favorites] = await db.query(
+          'SELECT * FROM `Favorite` WHERE user_id = ? AND photo_id = ?',
+          [decoded.userId, id]
+        );
+        if (favorites.length > 0) isFavorited = true;
       } catch (error) { /* ignore */ }
     }
 
-    res.status(200).json({ photo, userPhotos: userPhotosWithUrls, isLiked });
+    res.status(200).json({ photo, userPhotos: userPhotosWithUrls, isLiked, isFavorited });
   } catch (error) {
     console.error('获取图片详情失败:', error);
     res.status(500).json({ error: '服务器内部错误' });

@@ -15,4 +15,7 @@ router.get('/', commentController.getCommentsForPhoto);
 // POST /api/photos/:photoId/comments - 添加验证中间件
 router.post('/', protect, commentValidationRules, commentController.addCommentToPhoto);
 
+// DELETE /api/photos/:photoId/comments/:commentId - 删除评论
+router.delete('/:commentId', protect, commentController.deleteComment);
+
 module.exports = router;
