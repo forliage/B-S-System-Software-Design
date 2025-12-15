@@ -9,8 +9,41 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Body limit
 app.use(express.urlencoded({ extended: true }));
+
+// Security Middleware
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+// 1. Set Security HTTP Headers
+app.use(helmet());
+
+// 2. Limit requests from same API
+const limiter = rateLimit({
+    max: 100, // Limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    message: 'Too many requests from this IP, please try again in an hour!'
+});
+app.use('/api', limiter);
+
+// 3. Custom Sanitization Middleware (JSON/UrlEncoded)
+app.use((req, res, next) => {
+    const sanitize = (obj) => {
+        for (const key in obj) {
+            if (typeof obj[key] === 'string') {
+                obj[key] = obj[key].replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                sanitize(obj[key]);
+            }
+        }
+    };
+    if (req.body) sanitize(req.body);
+    if (req.query) sanitize(req.query);
+    if (req.params) sanitize(req.params);
+    next();
+});
+
 
 // Static files (Uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -39,7 +72,7 @@ app.use((err, req, res, next) => {
 // Create uploads directory if not exists
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)){
+if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 

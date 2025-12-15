@@ -8,7 +8,13 @@ exports.uploadPhoto = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-        const { title, description, tags } = req.body;
+        let { title, description, tags } = req.body;
+
+        // Manual Sanitize for Multipart (Middleware runs before multer populates body)
+        const sanitize = (str) => str ? str.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+        title = sanitize(title);
+        description = sanitize(description);
+
         const userId = req.user.id;
         const filename = req.file.filename;
         const filepath = `/uploads/${filename}`;
