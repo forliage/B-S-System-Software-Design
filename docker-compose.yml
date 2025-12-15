@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "13000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=mypassword
+      - DB_NAME=photosite
+      - DB_PORT=3306
+      - JWT_SECRET=change_this_secret_in_prod
+      - AI_API_KEY=
+    depends_on:
+      - db
+    restart: always
+
+  db:
+    build: ./db
+    ports:
+      - "13306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=mypassword
+      - MYSQL_DATABASE=photosite
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
