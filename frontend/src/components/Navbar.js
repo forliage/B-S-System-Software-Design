@@ -1,10 +1,13 @@
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import ThemeContext from '../context/ThemeContext';
 import { Upload, LogOut, User, Search, Home as HomeIcon } from 'lucide-react';
+import ThemeSettings from './ThemeSettings';
 
 const Navbar = () => {
     const { user, logout } = useContext(AuthContext);
+    const { themeColor, getGlassClasses } = useContext(ThemeContext);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
@@ -18,10 +21,10 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-white dark:bg-gray-800 shadow-md">
+        <nav className={`transition-all duration-300 ${getGlassClasses()} sticky top-0 z-50`}>
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center py-4">
-                    <Link to="/" className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <Link to="/" className={`text-2xl font-bold text-${themeColor}-600 dark:text-${themeColor}-400 flex items-center gap-2`}>
                         <HomeIcon /> PhotoSite
                     </Link>
 
@@ -48,15 +51,16 @@ const Navbar = () => {
                                     <User className="w-5 h-5" /> <span className="hidden md:inline">Profile</span>
                                 </Link>
                                 <button onClick={logout} className="flex items-center gap-1 text-red-500 hover:text-red-600">
-                                    <LogOut className="w-5 h-5" /> <span className="hidden md:inline">Logout</span>
+                                    <LogOut className="w-5 h-5" /> <span className="hidden md:inline">Exit</span>
                                 </button>
                             </>
                         ) : (
                             <div className="flex gap-4">
                                 <Link to="/login" className="text-gray-600 dark:text-gray-300 hover:text-blue-500">Login</Link>
-                                <Link to="/register" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full">Register</Link>
+                                <Link to="/register" className={`bg-${themeColor}-500 hover:bg-${themeColor}-600 text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all`}>Register</Link>
                             </div>
                         )}
+                        <ThemeSettings />
                     </div>
                 </div>
             </div>

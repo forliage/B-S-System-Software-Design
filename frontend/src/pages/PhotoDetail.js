@@ -90,7 +90,7 @@ const PhotoDetail = () => {
     if (loading) return <div>Loading...</div>;
     if (!photo) return <div>Photo not found</div>;
 
-    const isOwner = user && (user.id === photo.user_id || user.role === 'ADMIN');
+    const isOwner = user && (Number(user.id) === Number(photo.user_id) || user.role === 'ADMIN');
 
     return (
         <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden mb-10">
